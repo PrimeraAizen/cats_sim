@@ -16,7 +16,7 @@ Usage::
     uv run python scripts/verify_against_legacy.py            # ~15 minutes
     uv run python scripts/verify_against_legacy.py --runs 10  # ~7 minutes, less power
 
-With ~25 comparisons at a 3-sigma threshold, roughly a 7% chance exists that
+With 20 comparisons at a 3-sigma threshold there is roughly a 5% chance that
 one comparison fails by chance; re-run with another ``--seed`` before
 concluding there is a real difference.
 """
