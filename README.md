@@ -1,4 +1,4 @@
-# CATS Tangle Simulator
+# CATS Tangle Simulato
 
 [![CI](https://github.com/PrimeraAizen/cats_sim/actions/workflows/ci.yml/badge.svg)](https://github.com/PrimeraAizen/cats_sim/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)
