@@ -1,0 +1,49 @@
+# Full evaluation suite of the CATS paper (Tables II, III and the adaptive-response
+# experiment). Defaults match the original simulator (legacy/test3.py).
+#
+#   uv run cats-sim run configs/paper.toml --output-dir results/paper
+#
+# Expect a long run (hours): S-URTS and CATS solve a 500x500 Markov chain per selection.
+
+[simulation]
+seed = 20260403        # root seed; every run derives its own stream from it
+h = 1.0                # proof-of-work duration
+
+# Tip selection algorithms. `kind` selects the implementation (`cats-sim algorithms`
+# lists them); every other key is passed to its constructor.
+[algorithms]
+URTS     = { kind = "urts" }
+MCMC1    = { kind = "mcmc", alpha = 0.001 }
+MCMC5    = { kind = "mcmc", alpha = 0.05 }
+"S-URTS" = { kind = "surts", alpha = 0.001, subtangle_size = 500, thresholds = { 5 = 0.035, 10 = 0.015, 15 = 0.01, 20 = 0.007 } }
+"G-IOTA" = { kind = "giota" }
+CATS     = { kind = "cats" }   # reference parameters; e.g. add `kappa = 2.0` to change one
+
+# Experiment A: mean tip count under benign conditions (Table II)
+[experiments.scalability]
+algorithms = ["URTS", "MCMC1", "MCMC5", "S-URTS", "G-IOTA", "CATS"]
+lambdas = [5, 10, 15, 20]
+num_transactions = 2000
+warmup = 200
+num_runs = 100
+
+# Experiment B: probability p2 of selecting a parasite-chain tip (Table III)
+[experiments.security]
+algorithms = ["URTS", "MCMC1", "S-URTS", "CATS"]
+lam = 15
+mu = 5
+spc_lengths = [10, 30, 50]
+base_transactions = 500
+n_samples = 1000
+num_runs = 100
+
+# Experiment C: CATS adaptive response and detection latency
+[experiments.adaptive]
+algorithm = "CATS"
+lam = 15
+mu = 5
+spc_length = 30
+num_transactions = 1000
+attach_at = 250
+peak_window = 50
+num_runs = 100

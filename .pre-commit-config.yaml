@@ -1,0 +1,35 @@
+# Run `uv run pre-commit install` once; the hooks then run on every commit.
+# `uv run pre-commit run --all-files` runs them on demand.
+
+# legacy/ holds the original scripts byte-for-byte (provenance) and is never rewritten.
+exclude: ^legacy/
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.10
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
+  # mypy runs inside the project environment so it sees NumPy's and
+  # matplotlib's type information (a mirror hook would need them duplicated).
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: uv run mypy
+        language: system
+        types: [python]
+        pass_filenames: false

@@ -1,0 +1,39 @@
+# Tiny end-to-end configuration used by CI and the test-suite: exercises every
+# algorithm and every experiment in seconds. The numbers are NOT meaningful.
+
+[simulation]
+seed = 1
+h = 1.0
+
+[algorithms]
+URTS     = { kind = "urts" }
+MCMC1    = { kind = "mcmc", alpha = 0.001 }
+"S-URTS" = { kind = "surts", alpha = 0.001, subtangle_size = 100, thresholds = { 5 = 0.035 } }
+"G-IOTA" = { kind = "giota" }
+CATS     = { kind = "cats", subtangle_size = 100 }
+
+[experiments.scalability]
+algorithms = ["URTS", "MCMC1", "S-URTS", "G-IOTA", "CATS"]
+lambdas = [5, 10]
+num_transactions = 150
+warmup = 50
+num_runs = 2
+
+[experiments.security]
+algorithms = ["URTS", "S-URTS", "CATS"]
+lam = 5
+mu = 5
+spc_lengths = [10]
+base_transactions = 100
+n_samples = 20
+num_runs = 2
+
+[experiments.adaptive]
+algorithm = "CATS"
+lam = 5
+mu = 5
+spc_length = 10
+num_transactions = 200
+attach_at = 100
+peak_window = 50
+num_runs = 2

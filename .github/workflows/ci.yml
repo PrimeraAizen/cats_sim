@@ -1,0 +1,109 @@
+# Continuous integration: every push to main and every pull request must pass
+# lint, type-check, the test matrix, an end-to-end smoke run and a package build.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_COLOR: "1"
+
+jobs:
+  quality:
+    name: Lint & type-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - name: Install (locked)
+        run: uv sync --locked --all-extras
+      - name: Ruff lint
+        run: uv run ruff check --output-format=github .
+      - name: Ruff format
+        run: uv run ruff format --check .
+      - name: mypy (strict)
+        run: uv run mypy
+
+  test:
+    name: Tests (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python: ["3.11", "3.12", "3.13", "3.14"]
+        include:
+          - os: macos-latest
+            python: "3.14"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: ${{ matrix.python }}
+          enable-cache: true
+      - name: Install (locked)
+        run: uv sync --locked --all-extras
+      - name: pytest with coverage gate
+        run: uv run pytest --cov --cov-report=term --cov-report=xml
+      - name: Coverage summary
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.14'
+        run: uv run coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload coverage report
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.14'
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-xml
+          path: coverage.xml
+
+  smoke:
+    name: End-to-end smoke run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - name: Install (locked)
+        run: uv sync --locked --extra plot
+      - name: Run every experiment (tiny config)
+        run: uv run cats-sim run configs/smoke.toml --output-dir smoke-results | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Draw figures
+        run: uv run cats-sim plot smoke-results
+      - name: Upload smoke results
+        uses: actions/upload-artifact@v7
+        with:
+          name: smoke-results
+          path: smoke-results/
+
+  build:
+    name: Build distribution
+    needs: [quality, test, smoke]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+      - name: Build sdist and wheel
+        run: uv build
+      - name: Install the wheel in a clean environment and run it
+        run: |
+          uv venv /tmp/wheel-env
+          uv pip install --python /tmp/wheel-env dist/*.whl
+          /tmp/wheel-env/bin/cats-sim --version
+          /tmp/wheel-env/bin/cats-sim algorithms
+      - name: Upload distribution
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/

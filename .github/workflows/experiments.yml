@@ -1,0 +1,56 @@
+# Reproducible experiment runs: started manually from the Actions tab. Runs the
+# chosen configuration in a clean, locked environment and keeps the results and
+# figures as a downloadable artifact, with the exact commit recorded by GitHub.
+name: Experiments
+
+on:
+  workflow_dispatch:
+    inputs:
+      config:
+        description: Configuration file
+        type: choice
+        options: [configs/quick.toml, configs/paper.toml, configs/smoke.toml]
+        default: configs/quick.toml
+      seed:
+        description: Root seed (empty = value from the configuration)
+        required: false
+        default: ""
+      only:
+        description: Space-separated subset of experiments (empty = all enabled)
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360  # GitHub-hosted runner maximum
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - name: Install (locked)
+        run: uv sync --locked --extra plot
+      - name: Run experiments
+        env:
+          CONFIG: ${{ inputs.config }}
+          SEED: ${{ inputs.seed }}
+          ONLY: ${{ inputs.only }}
+        run: |
+          args=(run "$CONFIG" --output-dir results)
+          if [ -n "$SEED" ]; then args+=(--seed "$SEED"); fi
+          if [ -n "$ONLY" ]; then args+=(--only $ONLY); fi
+          uv run cats-sim "${args[@]}" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Draw figures
+        run: |
+          uv run cats-sim plot results --format png
+          uv run cats-sim plot results --format pdf
+      - name: Upload results
+        uses: actions/upload-artifact@v7
+        with:
+          name: results-${{ github.run_number }}
+          path: results/
+          retention-days: 90
