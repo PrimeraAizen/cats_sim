@@ -1,0 +1,10 @@
+# Namespace for the simulator's workloads. The "restricted" Pod Security Standard
+# rejects any pod that runs as root, keeps capabilities or allows privilege escalation.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cats-sim
+  labels:
+    app.kubernetes.io/name: cats-sim
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted

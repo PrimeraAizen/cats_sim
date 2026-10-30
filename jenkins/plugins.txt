@@ -1,0 +1,13 @@
+# Jenkins plugins, installed at image build time by jenkins-plugin-cli.
+# Dependencies are resolved automatically; Jenkins core is pinned in the Dockerfile.
+configuration-as-code
+job-dsl
+workflow-aggregator
+git
+credentials-binding
+junit
+coverage
+pipeline-graph-view
+pipeline-stage-view
+timestamper
+ws-cleanup

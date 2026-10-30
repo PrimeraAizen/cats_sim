@@ -1,6 +1,6 @@
 # 8. CI/CD with GitHub Actions
 
-Status: Accepted (2026-10-09)
+Status: Accepted (2026-10-09). Amended by [0011](0011-docker-jenkins-minikube.md)
 
 ## Context
 

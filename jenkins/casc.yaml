@@ -1,0 +1,78 @@
+# Jenkins Configuration as Code: the whole server setup, so it can be recreated with
+# `docker compose up --build` instead of clicking through the UI.
+# ${readFile:...} values come from jenkins/secrets/, which bootstrap.sh writes and
+# docker-compose.yml mounts read-only at /run/secrets. They are never committed.
+jenkins:
+  systemMessage: >-
+    CATS simulator CI/CD. This server is configured as code
+    (jenkins/casc.yaml in https://github.com/PrimeraAizen/cats_sim).
+  numExecutors: 2
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: admin
+          name: Administrator
+          password: "${readFile:/run/secrets/jenkins_admin_password}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - usernamePassword:
+              scope: GLOBAL
+              id: dockerhub
+              description: Docker Hub access token used to push the image
+              username: "${readFile:/run/secrets/dockerhub_username}"
+              usernameSecret: false
+              password: "${readFile:/run/secrets/dockerhub_token}"
+          - file:
+              scope: GLOBAL
+              id: kubeconfig
+              description: kubeconfig of the jenkins-deployer ServiceAccount (namespace cats-sim)
+              fileName: kubeconfig
+              secretBytes: "${readFileBase64:/run/secrets/kubeconfig}"
+
+unclassified:
+  location:
+    url: http://localhost:8080/
+
+# The pipeline job. Branches are discovered from the public repository and checked for
+# new commits every minute: a Jenkins on a laptop cannot receive GitHub webhooks.
+jobs:
+  - script: |
+      multibranchPipelineJob('cats-sim') {
+        displayName('CATS simulator')
+        description('Jenkinsfile pipeline of https://github.com/PrimeraAizen/cats_sim')
+        branchSources {
+          branchSource {
+            source {
+              git {
+                id('cats-sim-github')
+                remote('https://github.com/PrimeraAizen/cats_sim.git')
+                traits {
+                  gitBranchDiscovery()
+                }
+              }
+            }
+          }
+        }
+        factory {
+          workflowBranchProjectFactory {
+            scriptPath('Jenkinsfile')
+          }
+        }
+        orphanedItemStrategy {
+          discardOldItems {
+            numToKeep(10)
+          }
+        }
+        triggers {
+          periodicFolderTrigger {
+            interval('1m')
+          }
+        }
+      }

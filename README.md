@@ -1,6 +1,6 @@
 # CATS Tangle Simulator
 
-[![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
+[![CI](https://github.com/PrimeraAizen/cats_sim/actions/workflows/ci.yml/badge.svg)](https://github.com/PrimeraAizen/cats_sim/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -30,7 +30,7 @@ benign load and parasite-chain attacks.
 Requires Python ≥ 3.11 and [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
 ```bash
-git clone https://github.com/OWNER/REPO.git cats && cd cats
+git clone https://github.com/PrimeraAizen/cats_sim.git cats && cd cats
 uv sync --extra plot                                    # locked environment in .venv
 
 uv run cats-sim run configs/smoke.toml -o results/smoke  # seconds: every experiment, tiny
@@ -46,6 +46,20 @@ python -m venv .venv && source .venv/bin/activate
 pip install -e ".[plot]"
 cats-sim run configs/quick.toml
 ```
+
+With Docker, nothing but Docker is needed. The image contains Python, the locked
+dependencies and the configurations:
+
+```bash
+docker build -t cats-sim .
+docker run --rm cats-sim                                  # smoke run
+docker run --rm -v "$PWD/results:/results" cats-sim run configs/quick.toml -o /results
+docker run --rm -v "$PWD/results:/results" cats-sim plot /results
+```
+
+The Jenkins pipeline publishes every `main` build as `<dockerhub-user>/cats-sim:<commit>`
+and `:latest`. The image runs as uid 10001. On Linux, add `--user "$(id -u)"` if the
+mounted directory is not writable for that user.
 
 ## Usage
 
@@ -138,6 +152,8 @@ output directory (default `./results`, git-ignored):
   numbers as inside the full suite. Both properties are tested.
 - **Locked environment.** `uv.lock` pins every package version. `uv sync --locked`
   reproduces it.
+- **Container image.** The `Dockerfile` also fixes the interpreter and the operating
+  system. Image tags are git commits, and OCI labels record the version and commit.
 - **Provenance.** `results.json` records the configuration, seed and software
   versions. The *Experiments* workflow on GitHub Actions runs a configuration in a
   clean environment and archives the output with the commit it ran on.
@@ -243,6 +259,10 @@ experiments do not change.
 ├── docs/adr/                 architecture decision records (the "why")
 ├── scripts/                  verify_against_legacy.py (statistical equivalence)
 ├── legacy/                   the original scripts, byte-for-byte (provenance)
+├── Dockerfile                container image (multi-stage, non-root)
+├── Jenkinsfile               Jenkins pipeline: tests → image → Docker Hub → Minikube
+├── jenkins/                  local Jenkins as code: image, plugins, casc.yaml, bootstrap.sh
+├── k8s/                      namespace, deploy ServiceAccount (RBAC), Job template
 └── .github/                  CI, release and experiment workflows; Dependabot
 ```
 
@@ -274,13 +294,45 @@ The test-suite has these layers:
 
 | Workflow | Trigger | Does |
 |---|---|---|
-| [`ci.yml`](.github/workflows/ci.yml) | push to `main`, PRs | Ruff, mypy, pytest on Python 3.11–3.14 (Ubuntu) + macOS, coverage gate, end-to-end smoke run with figures, package build + install test |
+| [`ci.yml`](.github/workflows/ci.yml) | push to `main`, PRs | Ruff, mypy, pytest on Python 3.11–3.14 (Ubuntu) + macOS, coverage gate, end-to-end smoke run with figures, Docker image build + smoke run, package build + install test |
 | [`release.yml`](.github/workflows/release.yml) | tag `vX.Y.Z` | checks the tag against the package version, tests, builds, publishes a GitHub Release with sdist + wheel |
 | [`experiments.yml`](.github/workflows/experiments.yml) | manual | runs a chosen config/seed in a clean locked environment, uploads results + PNG/PDF figures (90 days) |
-| [`dependabot.yml`](.github/dependabot.yml) | weekly | grouped update PRs for Actions and `uv.lock` |
+| [`dependabot.yml`](.github/dependabot.yml) | weekly | grouped update PRs for Actions, `uv.lock` and Docker base images |
 
 Releasing: bump `version` in `pyproject.toml`, update `CHANGELOG.md`, commit, then
 `git tag v1.0.1 && git push --tags`.
+
+### Jenkins pipeline and deployment to Kubernetes
+
+A self-hosted Jenkins runs the [`Jenkinsfile`](Jenkinsfile) on every branch. It finds
+new commits by checking the repository every minute.
+
+| Stage | Branches | Does |
+|---|---|---|
+| Set up | all | `uv sync --locked --all-extras` |
+| Quality | all | Ruff ‖ mypy ‖ hadolint, in parallel |
+| Unit tests | all | pytest with JUnit and coverage reports (gate: 85%) |
+| Build image | all | `docker build`, tagged with the commit |
+| Smoke-test image | all | runs the image read-only, without capabilities |
+| Push to Docker Hub | `main` | `<user>/cats-sim:<commit>` and `:latest` |
+| Deploy to Minikube | `main` | creates a Job from [`k8s/job.yaml`](k8s/job.yaml) and fails unless it completes |
+
+The server itself is code: [`jenkins/`](jenkins/) holds a Jenkins image with the
+required tools, the plugin list and the
+[Configuration as Code](jenkins/casc.yaml) file that creates the user, credentials and
+job. To run it locally:
+
+```bash
+brew install minikube && minikube start --driver=docker --cpus=2 --memory=2g
+cp jenkins/.env.example jenkins/.env      # admin password, Docker Hub user + access token
+jenkins/bootstrap.sh                      # namespace, RBAC, secrets, then Jenkins on :8080
+```
+
+Jenkins deploys with the `jenkins-deployer` ServiceAccount, which may only manage
+Jobs in the `cats-sim` namespace. That namespace enforces the *restricted* Pod Security
+Standard. Check a deployment with
+`kubectl -n cats-sim get jobs,pods` and `kubectl -n cats-sim logs job/cats-sim-smoke-<build>`.
+See [ADR 0011](docs/adr/0011-docker-jenkins-minikube.md).
 
 ## Design decisions
 
@@ -299,6 +351,7 @@ Every significant choice is recorded with context, alternatives and consequences
 | GitHub Actions + Dependabot | native to the host; CI, releases and archived experiment runs | [0008](docs/adr/0008-ci-cd-github-actions.md) |
 | matplotlib as optional extra | light core install; re-plot without re-running | [0009](docs/adr/0009-plotting-as-optional-extra.md) |
 | Behaviour-preserving refactor | the paper's numbers must stay valid; verified exactly and statistically | [0010](docs/adr/0010-behaviour-preserving-refactor.md) |
+| Docker + Jenkins + Minikube | same image everywhere; self-hosted CI/CD; the published image is proven on a cluster | [0011](docs/adr/0011-docker-jenkins-minikube.md) |
 
 ## References
 

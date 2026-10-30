@@ -87,6 +87,23 @@ jobs:
           name: smoke-results
           path: smoke-results/
 
+  # The Jenkins pipeline (Jenkinsfile) builds, pushes and deploys the image; this job
+  # keeps the Dockerfile checked on every pull request even when that server is off.
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Lint Dockerfile (hadolint)
+        run: docker run --rm -i hadolint/hadolint:v2.15.1 < Dockerfile
+      - name: Build image
+        run: docker build --build-arg REVISION="$GITHUB_SHA" --tag cats-sim:ci .
+      - name: Smoke-run the image (read-only root file system, no capabilities)
+        run: |
+          docker run --rm cats-sim:ci --version
+          docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges \
+            --tmpfs /tmp --tmpfs /results:mode=1777 cats-sim:ci
+
   build:
     name: Build distribution
     needs: [quality, test, smoke]

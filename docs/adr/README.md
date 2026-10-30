@@ -15,8 +15,9 @@ ADRs are immutable once accepted. A later change of mind gets a new ADR that
 | [0005](0005-explicit-seeded-randomness.md) | Explicit, seeded random number generation | Accepted |
 | [0006](0006-toml-configuration-and-cli.md) | TOML configuration files and a standard-library CLI | Accepted |
 | [0007](0007-quality-toolchain.md) | Ruff, mypy, pytest, Hypothesis, coverage, pre-commit | Accepted |
-| [0008](0008-ci-cd-github-actions.md) | CI/CD with GitHub Actions | Accepted |
+| [0008](0008-ci-cd-github-actions.md) | CI/CD with GitHub Actions | Accepted, amended by 0011 |
 | [0009](0009-plotting-as-optional-extra.md) | Plotting as an optional extra | Accepted |
 | [0010](0010-behaviour-preserving-refactor.md) | Behaviour-preserving refactor, verified against the original | Accepted |
+| [0011](0011-docker-jenkins-minikube.md) | Docker image, Jenkins pipeline and deployment to Minikube | Accepted |
 
 New ADR: copy the structure of an existing one, take the next number, add it to the table.

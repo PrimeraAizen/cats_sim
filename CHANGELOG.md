@@ -6,6 +6,24 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- `Dockerfile`: a multi-stage container image (uv builder, slim Python 3.14 runtime)
+  that runs as a non-root user and works with a read-only root file system.
+- `Jenkinsfile`: a pipeline with lint, type-check, hadolint, unit tests with JUnit and
+  coverage reports, image build and image smoke test on every branch. On `main` it
+  also pushes to Docker Hub and runs a deployment Job on Minikube.
+- `jenkins/`: a reproducible local Jenkins built from code (Jenkins LTS image with
+  docker CLI, kubectl, uv and Python; plugin list; Configuration as Code; Job DSL
+  multibranch job), started by `bootstrap.sh`.
+- `k8s/`: the `cats-sim` namespace with the restricted Pod Security Standard, a
+  least-privilege `jenkins-deployer` ServiceAccount, and the Job template.
+- GitHub Actions: a `docker` job that lints, builds and smoke-runs the image.
+  Dependabot now also updates Docker base images.
+- ADR 0011: Docker image, Jenkins pipeline and deployment to Minikube.
+
+### Changed
+- README: Docker usage, the Jenkins/Kubernetes setup, and the repository URLs.
+
 ## [1.0.0] - 2026-10-09
 
 First packaged release of the simulator used for the CATS paper

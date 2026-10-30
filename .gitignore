@@ -26,3 +26,7 @@ results/
 .idea/
 .vscode/
 .DS_Store
+
+# Local Jenkins secrets (written by jenkins/bootstrap.sh from jenkins/.env)
+jenkins/.env
+jenkins/secrets/

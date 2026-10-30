@@ -1,0 +1,13 @@
+# Allow-list: the image needs only what `uv sync` builds and the configurations.
+# Tests, docs, CI and deployment files stay out of the build context.
+*
+!src/
+!configs/
+!pyproject.toml
+!uv.lock
+!README.md
+!LICENSE
+!.python-version
+
+**/__pycache__
+**/*.py[cod]
