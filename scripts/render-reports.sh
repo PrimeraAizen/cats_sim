@@ -17,14 +17,24 @@ h1 { font-size: 1.5em; line-height: 1.25; }
 h2 { font-size: 1.2em; margin-top: 1.5em; }
 table { border-collapse: collapse; margin: 1em 0; }
 th, td { border: 1px solid #999; padding: 0.3em 0.6em; vertical-align: top; }
-td img { max-width: 30em; }
+figure { margin: 1.5em 0; }
+figure img { max-width: 100%; border: 1px solid #ccc; }
+figcaption { font-size: 0.9em; margin-top: 0.3em; }
 code { font-size: 0.9em; }
 div.mermaid { text-align: center; margin: 1em 0; }
 CSS
 
 # pandoc writes ```mermaid blocks as <pre class="mermaid"><code>…; mermaid.js needs the
-# bare text in a div. The library is downloaded first so pandoc can embed it.
-curl -fsSL -o "$tmp/mermaid.min.js" https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js
+# bare text in a div. The library is downloaded first so pandoc can embed it; a second
+# CDN is the fallback when the first is slow.
+for cdn in https://cdn.jsdelivr.net/npm https://unpkg.com; do
+    if curl -fsSL --connect-timeout 10 --max-time 60 -o "$tmp/mermaid.min.js" \
+        "$cdn/mermaid@11/dist/mermaid.min.js"; then
+        break
+    fi
+    rm -f "$tmp/mermaid.min.js"
+done
+[[ -s "$tmp/mermaid.min.js" ]] || { echo "could not download mermaid.js" >&2; exit 1; }
 printf '<script src="%s"></script>\n' "$tmp/mermaid.min.js" >"$tmp/mermaid.html"
 cat >>"$tmp/mermaid.html" <<'HTML'
 <script>

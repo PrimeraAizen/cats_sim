@@ -92,8 +92,9 @@ files into an image that runs identically anywhere:
 
 *In CATS*, a multi-stage `Dockerfile` installs the locked environment with uv and
 copies only the virtual environment into a slim, non-root runtime image tagged with
-the git commit. `docker run <user>/cats-sim run configs/paper.toml` reproduces the
-paper's experiments without installing Python.
+the git commit. The command
+`docker run -v "$PWD/results:/results" jotarokujoh/cats-sim run configs/paper.toml -o /results`
+reproduces the paper's experiments without installing Python.
 
 **Jenkins** runs pipelines written as code in a `Jenkinsfile`, and its plugins
 integrate Git, Docker, Kubernetes and test reports. Being self-hosted, it can run next

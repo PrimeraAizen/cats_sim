@@ -9,7 +9,7 @@
 | Dockerfile | <https://github.com/PrimeraAizen/cats_sim/blob/main/Dockerfile> |
 | Jenkins server as code | [`jenkins/`](https://github.com/PrimeraAizen/cats_sim/tree/main/jenkins) |
 | Kubernetes manifests | [`k8s/`](https://github.com/PrimeraAizen/cats_sim/tree/main/k8s) |
-| Docker Hub image | <https://hub.docker.com/r/DOCKERHUB_USER/cats-sim> |
+| Docker Hub image | <https://hub.docker.com/r/jotarokujoh/cats-sim> |
 | Design decision record | [ADR 0011](https://github.com/PrimeraAizen/cats_sim/blob/main/docs/adr/0011-docker-jenkins-minikube.md) |
 
 ## 1. Overview
@@ -33,7 +33,7 @@ flowchart TB
     end
     subgraph cd["main branch only"]
         direction LR
-        hub["Docker Hub<br/>user/cats-sim:&lt;commit&gt;"] --> k8s["Minikube<br/>Job cats-sim-smoke-N"]
+        hub["Docker Hub<br/>jotarokujoh/cats-sim:&lt;commit&gt;"] --> k8s["Minikube<br/>Job cats-sim-smoke-N"]
     end
     src -- "polled every minute" --> pipe
     pipe -- "push" --> cd
@@ -65,26 +65,26 @@ flowchart TB
 
    No setup wizard and no clicking are needed.
 
-3. **CI pipeline** (`Jenkinsfile`). Durations are from a verification run of the
-   real Jenkinsfile on a branch:
+3. **CI pipeline** (`Jenkinsfile`). Durations are from the first `main` build (#1,
+   commit `173427ee`):
 
    | Stage | Runs on | Duration |
    | --- | --- | --- |
-   | Set up: `uv sync --locked` | all branches | 27 s (cold cache) |
-   | Quality: Ruff ‖ mypy ‖ hadolint, in parallel | all branches | 3 s |
-   | Unit tests: 193 tests, coverage 97.3% (gate 85%), JUnit + coverage reports | all branches | 13 s |
-   | Build image, tagged with the commit | all branches | 10 s |
+   | Set up: `uv sync --locked` | all branches | 13 s |
+   | Quality: Ruff ‖ mypy ‖ hadolint, in parallel | all branches | 5 s |
+   | Unit tests: 193 tests, coverage 97.3% of lines and branches (gate 85%), JUnit + coverage reports | all branches | 15 s |
+   | Build image, tagged with the commit | all branches | 14 s |
    | Smoke-test image: read-only, no capabilities | all branches | 2 s |
-   | Push to Docker Hub: `:<commit>` and `:latest` | `main` | DURATION |
-   | Deploy to Minikube: Job must complete | `main` | DURATION |
+   | Push to Docker Hub: `:<commit>` and `:latest` | `main` | 26 s |
+   | Deploy to Minikube: Job must complete | `main` | 26 s |
 
-   The whole branch build took **57 s**. Push and Deploy show as *skipped* on other
-   branches.
+   The whole `main` build took **110 s**. On other branches Push and Deploy show as
+   *skipped* (Fig. 3).
 
 4. **Docker Hub (optional item).** The pipeline logs in with an access token stored
    as a Jenkins credential. The login uses `--password-stdin` and a per-build
-   `DOCKER_CONFIG`, so it never outlives the build. The pipeline pushes
-   `DOCKERHUB_USER/cats-sim:<commit>` and `:latest`.
+   `DOCKER_CONFIG`, so it never outlives the build. Build #1 pushed
+   `jotarokujoh/cats-sim:173427ee` and `:latest`, the same image digest under both tags.
 
 5. **CD to Kubernetes (bonus).** The Kubernetes setup has three parts:
    - The `cats-sim` namespace enforces the *restricted* Pod Security Standard.
@@ -94,7 +94,8 @@ flowchart TB
      `k8s/job.yaml`. The Job runs the image just pushed, as non-root, with a read-only
      file system and resource limits. The pipeline waits for it and prints its log,
      and the build fails unless the Job completes. The Job's annotations record the
-     commit and the Jenkins build URL.
+     commit and the Jenkins build URL. Build #1's Job `cats-sim-smoke-1` completed in
+     23 s.
 
 6. **GitHub Actions** remain the CI for pull requests. A new `docker` job lints, builds
    and smoke-runs the image, so the Dockerfile is checked even when the laptop Jenkins
@@ -102,15 +103,19 @@ flowchart TB
 
 ## 3. Screenshots
 
-| Figure | Shows |
-| --- | --- |
-| ![Fig. 1](img/assignment-5/01-jenkins-branches.png) | Fig. 1. Multibranch job with the discovered branches |
-| ![Fig. 2](img/assignment-5/02-main-pipeline-graph.png) | Fig. 2. Green `main` build: all stages incl. Push and Deploy |
-| ![Fig. 3](img/assignment-5/03-branch-build-skipped.png) | Fig. 3. Feature-branch build: Push and Deploy skipped |
-| ![Fig. 4](img/assignment-5/04-tests-coverage.png) | Fig. 4. JUnit test result (193 passed) and coverage report |
-| ![Fig. 5](img/assignment-5/05-dockerhub-tags.png) | Fig. 5. Docker Hub repository with commit and `latest` tags |
-| ![Fig. 6](img/assignment-5/06-kubectl-job.png) | Fig. 6. `kubectl -n cats-sim get jobs,pods` and the Job log |
-| ![Fig. 7](img/assignment-5/07-failed-build.png) | Fig. 7. A failing test stops the pipeline before the image is built |
+![Fig. 1. The multibranch job with the branches it discovered, all green.](img/assignment-5/01-jenkins-branches.png)
+
+![Fig. 2. `main` build #1: every stage passed, including Push to Docker Hub and Deploy to Minikube.](img/assignment-5/02-main-pipeline-graph.png)
+
+![Fig. 3. Feature-branch build: the CI stages ran; Push and Deploy were skipped (empty cells).](img/assignment-5/03-branch-build-skipped.png)
+
+![Fig. 4. Build summary: tests with no failures; the coverage plugin shows line 98.4% and branch 92.5% (pytest-cov combines them as 97.3%).](img/assignment-5/04-tests-coverage.png)
+
+![Fig. 5. Docker Hub: tags `173427ee` (the commit) and `latest` point to the same digest.](img/assignment-5/05-dockerhub-tags.png)
+
+![Fig. 6. `kubectl -n cats-sim get jobs,pods`: the Job completed in 23 s; below it, the Job log.](img/assignment-5/06-kubectl-job.png)
+
+![Fig. 7. Build #1 of `demo/failing-test` (red row): one deliberately failing test (1 failed, 193 passed) stops the pipeline, so no image is built, pushed or deployed. Stage View also marks the skipped later stages red. Build #2 is the branch reset to `main`.](img/assignment-5/07-failed-build.png)
 
 ## 4. Difficulties and solutions
 
