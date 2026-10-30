@@ -1,6 +1,14 @@
-# Keep GitHub Actions and the locked Python dependencies up to date.
+# Keep GitHub Actions, the locked Python dependencies and the Docker base images up to date.
 version: 2
 updates:
+  - package-ecosystem: docker
+    directories: ["/", "/jenkins"]
+    schedule:
+      interval: weekly
+    groups:
+      images:
+        patterns: ["*"]
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

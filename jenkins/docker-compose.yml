@@ -1,0 +1,30 @@
+# Local Jenkins for the CATS pipeline. Start it with jenkins/bootstrap.sh, which writes
+# ./secrets first. Afterwards: docker compose -f jenkins/docker-compose.yml up -d | down | logs -f
+name: cats-jenkins
+
+services:
+  jenkins:
+    build: .
+    image: cats-jenkins:local
+    container_name: cats-jenkins
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"  # UI on this machine only
+    # Docker-outside-of-Docker: builds run on the host's Docker Engine through its socket.
+    # The jenkins user joins the socket's group (root:root 0660 on Docker Desktop).
+    group_add:
+      - "${DOCKER_GID:-0}"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./secrets:/run/secrets:ro
+    networks:
+      - default
+      - minikube  # reach the Kubernetes API server at https://<minikube ip>:8443
+
+volumes:
+  jenkins_home:
+
+networks:
+  minikube:
+    external: true  # created by `minikube start --driver=docker`

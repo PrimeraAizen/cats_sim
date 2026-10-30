@@ -1,0 +1,45 @@
+# Identity used by Jenkins to deploy. It can manage Jobs and read their pods and logs
+# in the cats-sim namespace only: no cluster-wide rights, no access to other namespaces.
+# jenkins/bootstrap.sh turns the token below into the kubeconfig credential for Jenkins.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jenkins-deployer
+  namespace: cats-sim
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: jenkins-deployer
+  namespace: cats-sim
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "create", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jenkins-deployer
+  namespace: cats-sim
+subjects:
+  - kind: ServiceAccount
+    name: jenkins-deployer
+    namespace: cats-sim
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: jenkins-deployer
+---
+# Long-lived token for the ServiceAccount (filled in by the cluster).
+apiVersion: v1
+kind: Secret
+metadata:
+  name: jenkins-deployer-token
+  namespace: cats-sim
+  annotations:
+    kubernetes.io/service-account.name: jenkins-deployer
+type: kubernetes.io/service-account-token
