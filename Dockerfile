@@ -12,7 +12,7 @@
 # update them.
 
 # ---------------------------------------------------------------- builder
-FROM ghcr.io/astral-sh/uv:0.13.6-python3.14-trixie-slim AS builder
+FROM ghcr.io/astral-sh/uv:0.13.8-python3.14-trixie-slim AS builder
 
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
@@ -32,7 +32,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --extra plot --no-editable
 
 # ---------------------------------------------------------------- runtime
-FROM python:3.14-slim-trixie AS runtime
+FROM python:3.15-slim-trixie AS runtime
 
 ARG VERSION=dev
 ARG REVISION=unknown

@@ -5,9 +5,9 @@
 # Image tags are literal so Dependabot can update them.
 
 FROM docker:29.9.2-cli AS docker-cli
-FROM ghcr.io/astral-sh/uv:0.13.6 AS uv
+FROM ghcr.io/astral-sh/uv:0.13.8 AS uv
 
-FROM jenkins/jenkins:2.580.1-lts-jdk21
+FROM jenkins/jenkins:2.580.2-lts-jdk21
 
 ARG TARGETARCH
 ARG KUBECTL_VERSION=v1.37.1
